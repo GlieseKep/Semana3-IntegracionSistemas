@@ -1,22 +1,38 @@
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { GRPC_PORT, HTTP_PORT, PROTO_PATH } from './grpc.config.js';
 
 async function bootstrap() {
-  const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+  // Aplicación híbrida: API REST (para el usuario) + microservicio gRPC
+  const app = await NestFactory.create(AppModule);
+
+  app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.GRPC,
     options: {
       package: 'productos',
-      protoPath: join(__dirname, 'productos.proto'),
-      url: '0.0.0.0:5000',
+      protoPath: PROTO_PATH,
+      url: `0.0.0.0:${GRPC_PORT}`,
     },
   });
-  await app.listen();
-  console.log('Microservicio gRPC escuchando en 0.0.0.0:5000');
+
+  const config = new DocumentBuilder()
+    .setTitle('API REST de Productos')
+    .setDescription(
+      'Gateway REST que consume el microservicio gRPC ProductoService (productos.proto)',
+    )
+    .setVersion('1.0')
+    .addTag('productos')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
+  await app.startAllMicroservices();
+  console.log(`Microservicio gRPC escuchando en 0.0.0.0:${GRPC_PORT}`);
+
+  await app.listen(HTTP_PORT);
+  console.log(`API REST escuchando en http://localhost:${HTTP_PORT}`);
+  console.log(`Swagger disponible en http://localhost:${HTTP_PORT}/api`);
 }
 bootstrap();
