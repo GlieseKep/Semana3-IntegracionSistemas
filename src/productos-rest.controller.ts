@@ -10,7 +10,7 @@ import {
   ParseIntPipe,
   Query,
 } from '@nestjs/common';
-import { ClientGrpc } from '@nestjs/microservices';
+import type { ClientGrpc } from '@nestjs/microservices';
 import {
   ApiOkResponse,
   ApiNotFoundResponse,
